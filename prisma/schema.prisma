@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  student
+  professional
+}
+
+enum SessionStatus {
+  requested
+  accepted
+  active
+  ended
+}
+
+enum ReportStatus {
+  pending
+  reviewed
+  resolved
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  studentProfile    StudentProfile?
+  professionalProfile ProfessionalProfile?
+  sessionsAsStudent Session[]       @relation("StudentSessions")
+  sessionsAsProfessional Session[]  @relation("ProfessionalSessions")
+  reportsFiled      Report[]        @relation("Reporter")
+  reportsAgainst    Report[]        @relation("Reported")
+}
+
+model StudentProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique @map("user_id")
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                  String
+  age                   Int
+  fieldOfStudy         String   @map("field_of_study")
+  interests            String[] @default([])
+  goals                String?
+  aiQuestionnaireAnswers Json?   @map("ai_questionnaire_answers")
+  onboardingComplete   Boolean  @default(false) @map("onboarding_complete")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+}
+
+model ProfessionalProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique @map("user_id")
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                 String
+  bio                  String
+  expertise            String[] @default([])
+  experienceYears      Int      @map("experience_years")
+  experienceDescription String? @map("experience_description")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+}
+
+model Session {
+  id             String        @id @default(cuid())
+  studentId      String        @map("student_id")
+  student        User          @relation("StudentSessions", fields: [studentId], references: [id], onDelete: Cascade)
+  professionalId String        @map("professional_id")
+  professional   User          @relation("ProfessionalSessions", fields: [professionalId], references: [id], onDelete: Cascade)
+  status         SessionStatus @default(requested)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  endedAt        DateTime?     @map("ended_at")
+}
+
+model Report {
+  id           String       @id @default(cuid())
+  reporterId   String       @map("reporter_id")
+  reporter     User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedId   String       @map("reported_id")
+  reported     User         @relation("Reported", fields: [reportedId], references: [id], onDelete: Cascade)
+  reporterRole Role         @map("reporter_role")
+  reportedRole Role         @map("reported_role")
+  reason       String
+  description  String?
+  status       ReportStatus @default(pending)
+  createdAt    DateTime     @default(now()) @map("created_at")
+}
